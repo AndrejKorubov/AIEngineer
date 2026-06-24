@@ -68,6 +68,10 @@ export function Studio() {
       const { batchId } = await res.json();
       setActiveBatch(batchId);
       setHistoryKey((k) => k + 1);
+      // Clear the inputs so the same set can't be submitted again by mistake.
+      [...products, ...references].forEach((p) => URL.revokeObjectURL(p.preview));
+      setProducts([]);
+      setReferences([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "something went wrong");
     } finally {
