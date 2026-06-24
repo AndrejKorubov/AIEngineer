@@ -31,3 +31,15 @@ export const imageProviders: ImageEditProvider[] = [
   hasGoogle && geminiFlashImage,
   hasFal && falKontext,
 ].filter(Boolean) as ImageEditProvider[];
+
+/**
+ * Filter an ordered provider list to the ones enabled by the user (default-on:
+ * a provider is kept unless explicitly set to false). Lets the UI toggles force
+ * failover paths or disable a stage entirely.
+ */
+export function pickEnabled<P extends { name: string }>(
+  list: P[],
+  enabled?: Record<string, boolean>,
+): P[] {
+  return list.filter((p) => enabled?.[p.name] !== false);
+}

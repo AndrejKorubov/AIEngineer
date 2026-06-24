@@ -20,8 +20,8 @@ export const batchCreated = inngest.createFunction(
     });
 
     // Analyze the reference image(s) a single time; reused by every job.
-    const styleGuide = await step.run("analyze-reference", () =>
-      analyzeReference(batch.referenceUrls),
+    const { styleGuide } = await step.run("analyze-reference", () =>
+      analyzeReference(batch.referenceUrls, batch.providers ?? undefined),
     );
 
     await step.run("save-style-guide", async () => {

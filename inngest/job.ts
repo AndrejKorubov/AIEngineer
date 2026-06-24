@@ -46,18 +46,23 @@ export const jobRun = inngest.createFunction(
     );
     if (!batch?.styleGuide) throw new Error("style guide not ready");
 
-    const product = await step.run("analyze-product", () => analyzeProduct(job.productUrl));
+    const enabled = batch.providers ?? undefined;
 
-    const plan = await step.run("build-plan", () =>
-      buildGenerationPlan(product, batch.styleGuide!),
+    const { product, providerUsed: visionUsed } = await step.run("analyze-product", () =>
+      analyzeProduct(job.productUrl, enabled),
     );
 
-    const resultUrl = await step.run("generate-image", () =>
+    const { plan, providerUsed: llmUsed } = await step.run("build-plan", () =>
+      buildGenerationPlan(product, batch.styleGuide!, enabled),
+    );
+
+    const { resultUrl, providerUsed: imageUsed } = await step.run("generate-image", () =>
       generateCreative({
         jobId,
         productUrl: job.productUrl,
         referenceUrls: batch.referenceUrls,
         editPrompt: plan.editPrompt,
+        enabled,
       }),
     );
 
@@ -71,6 +76,7 @@ export const jobRun = inngest.createFunction(
           headline: plan.copy.headline,
           caption: plan.copy.caption,
           cta: plan.copy.cta,
+          providersUsed: { vision: visionUsed, llm: llmUsed, image: imageUsed },
           error: null,
           updatedAt: new Date(),
         })

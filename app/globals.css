@@ -1,12 +1,127 @@
 @import "tailwindcss";
 
+/*
+ * Design-system token layer (my-skill). Tokens are agnostic CSS custom
+ * properties mapped to Tailwind v4 utilities via @theme inline, so components
+ * use semantic classes (bg-card, text-heading, border-border) and light/dark
+ * resolve automatically through prefers-color-scheme.
+ */
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #fafafa; /* neutral-secondary-soft */
+  --card: #ffffff; /* neutral-primary-soft */
+  --card-muted: #f4f4f5; /* neutral-secondary-medium */
+  --heading: #09090b;
+  --body: #71717a;
+  --muted: #a1a1aa; /* body-subtle */
+  --border: #e4e4e7; /* border-default */
+  --border-strong: #d4d4d8;
+
+  --brand: #2e2e2e;
+  --brand-strong: #1a1a1a;
+  --brand-foreground: #ffffff;
+
+  --success: #16a34a;
+  --success-soft: #f0fdf4;
+  --success-strong: #15803d;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --danger-strong: #b91c1c;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --warning-strong: #b45309;
+  --info: #0284c7; /* sky — used for "processing" */
+  --info-soft: #f0f9ff;
+  --info-strong: #0369a1;
+
+  /* Button glint custom props (buttons.md) */
+  --glint-400: rgba(255, 255, 255, 0.06);
+  --glint-700: rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #09090b;
+    --card: #18181b; /* neutral-primary-medium */
+    --card-muted: #27272a;
+    --heading: #fafafa;
+    --body: #a1a1aa;
+    --muted: #71717a;
+    --border: #27272a;
+    --border-strong: #3f3f46;
+
+    --brand: #d4d4d4;
+    --brand-strong: #e5e5e5;
+    --brand-foreground: #18181b;
+
+    --success: #22c55e;
+    --success-soft: #052e16;
+    --success-strong: #4ade80;
+    --danger: #ef4444;
+    --danger-soft: #450a0a;
+    --danger-strong: #fca5a5;
+    --warning: #f59e0b;
+    --warning-soft: #3a2a0a;
+    --warning-strong: #fde68a;
+    --info: #0ea5e9;
+    --info-soft: #0c2733;
+    --info-strong: #7dd3fc;
+
+    --glint-400: rgba(255, 255, 255, 0.04);
+    --glint-700: rgba(0, 0, 0, 0.06);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-card-muted: var(--card-muted);
+  --color-heading: var(--heading);
+  --color-body: var(--body);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-foreground: var(--brand-foreground);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-strong: var(--success-strong);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-strong: var(--danger-strong);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-strong: var(--warning-strong);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-strong: var(--info-strong);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Staggered page-load entrance (layout.md: one orchestrated moment). */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

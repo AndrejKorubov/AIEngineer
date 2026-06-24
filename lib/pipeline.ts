@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob";
 import { withFailover } from "./providers/withFailover";
-import { visionProviders, llmProviders, imageProviders } from "./providers/registry";
+import { visionProviders, llmProviders, imageProviders, pickEnabled } from "./providers/registry";
+import type { ProviderConfig } from "@/db/schema";
 import {
   ProductAnalysisSchema,
   StyleGuideSchema,
@@ -11,40 +12,51 @@ import {
 } from "./schemas";
 
 /** Analyze the reference image(s) ONCE per batch into a shared style guide. */
-export async function analyzeReference(referenceUrls: string[]): Promise<StyleGuide> {
-  const { result } = await withFailover(visionProviders, (p) =>
-    p.analyze({
-      imageUrls: referenceUrls,
-      schema: StyleGuideSchema,
-      instruction:
-        "You are a creative director. Analyze these reference image(s) and extract a reusable " +
-        "style guide describing the setting, lighting, mood, style, composition, color palette, " +
-        "textures and camera angle. Describe the SCENE and AESTHETIC, not any product in it.",
-    }),
+export async function analyzeReference(
+  referenceUrls: string[],
+  enabled?: ProviderConfig,
+): Promise<{ styleGuide: StyleGuide; providerUsed: string }> {
+  const { result, providerUsed } = await withFailover(
+    pickEnabled(visionProviders, enabled),
+    (p) =>
+      p.analyze({
+        imageUrls: referenceUrls,
+        schema: StyleGuideSchema,
+        instruction:
+          "You are a creative director. Analyze these reference image(s) and extract a reusable " +
+          "style guide describing the setting, lighting, mood, style, composition, color palette, " +
+          "textures and camera angle. Describe the SCENE and AESTHETIC, not any product in it.",
+      }),
   );
-  return result;
+  return { styleGuide: result, providerUsed };
 }
 
 /** Analyze a single product image into a structured description. */
-export async function analyzeProduct(productUrl: string): Promise<ProductAnalysis> {
-  const { result } = await withFailover(visionProviders, (p) =>
-    p.analyze({
-      imageUrls: [productUrl],
-      schema: ProductAnalysisSchema,
-      instruction:
-        "Analyze this product photo. Identify the product, its shape, colors, materials, the key " +
-        "details that make it recognizable, and exactly what must NOT be distorted when it is " +
-        "placed into a new scene (logos, text, proportions, color).",
-    }),
+export async function analyzeProduct(
+  productUrl: string,
+  enabled?: ProviderConfig,
+): Promise<{ product: ProductAnalysis; providerUsed: string }> {
+  const { result, providerUsed } = await withFailover(
+    pickEnabled(visionProviders, enabled),
+    (p) =>
+      p.analyze({
+        imageUrls: [productUrl],
+        schema: ProductAnalysisSchema,
+        instruction:
+          "Analyze this product photo. Identify the product, its shape, colors, materials, the key " +
+          "details that make it recognizable, and exactly what must NOT be distorted when it is " +
+          "placed into a new scene (logos, text, proportions, color).",
+      }),
   );
-  return result;
+  return { product: result, providerUsed };
 }
 
 /** Build the edit prompt + social copy from the product analysis and shared style guide. */
 export async function buildGenerationPlan(
   product: ProductAnalysis,
   style: StyleGuide,
-): Promise<GenerationPlan> {
+  enabled?: ProviderConfig,
+): Promise<{ plan: GenerationPlan; providerUsed: string }> {
   const prompt =
     `Create a plan to place a product into a styled scene for a social media creative.\n\n` +
     `PRODUCT:\n${JSON.stringify(product, null, 2)}\n\n` +
@@ -56,7 +68,7 @@ export async function buildGenerationPlan(
     `3) composition: how to frame the product in the scene.\n` +
     `4) copy: a headline, caption and CTA for the post that fit the product and mood.`;
 
-  const { result } = await withFailover(llmProviders, (p) =>
+  const { result, providerUsed } = await withFailover(pickEnabled(llmProviders, enabled), (p) =>
     p.complete({ prompt, schema: GenerationPlanSchema }),
   );
 
@@ -66,22 +78,25 @@ export async function buildGenerationPlan(
       `Place the ${product.productType} into a ${style.setting} scene with ${style.lighting} ` +
       `lighting and a ${style.mood} mood. Preserve the product's exact shape, colors and details.`;
   }
-  return result;
+  return { plan: result, providerUsed };
 }
 
-/** Generate the creative image and persist it to Vercel Blob; returns the public URL. */
+/** Generate the creative image and persist it to Vercel Blob; returns the public URL + provider. */
 export async function generateCreative(args: {
   jobId: string;
   productUrl: string;
   referenceUrls: string[];
   editPrompt: string;
-}): Promise<string> {
-  const { result } = await withFailover(imageProviders, (p) =>
-    p.edit({
-      productUrl: args.productUrl,
-      referenceUrls: args.referenceUrls,
-      prompt: args.editPrompt,
-    }),
+  enabled?: ProviderConfig;
+}): Promise<{ resultUrl: string; providerUsed: string }> {
+  const { result, providerUsed } = await withFailover(
+    pickEnabled(imageProviders, args.enabled),
+    (p) =>
+      p.edit({
+        productUrl: args.productUrl,
+        referenceUrls: args.referenceUrls,
+        prompt: args.editPrompt,
+      }),
   );
   const ext = result.contentType.includes("jpeg") ? "jpg" : "png";
   const blob = await put(`creatives/${args.jobId}.${ext}`, result.bytes, {
@@ -93,5 +108,5 @@ export async function generateCreative(args: {
     // it use BLOB_STORE_ID (a different/private store) and reject public access.
     token: process.env.BLOB_READ_WRITE_TOKEN,
   });
-  return blob.url;
+  return { resultUrl: blob.url, providerUsed };
 }
