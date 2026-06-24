@@ -2,15 +2,32 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { desc, inArray } from "drizzle-orm";
 import { db, batches, jobs } from "@/db";
+import { ensureSchema } from "@/db/ensureSchema";
 import { inngest } from "@/inngest/client";
 
+/**
+ * Only accept image URLs that live on our Vercel Blob public store (where the
+ * client upload always lands). This blocks server-side SSRF: without it a caller
+ * could make us fetch arbitrary/internal URLs (the pipeline downloads these).
+ */
+function isBlobUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+const blobUrl = z.string().url().refine(isBlobUrl, "must be a Vercel Blob URL");
+
 const BodySchema = z.object({
-  productUrls: z.array(z.string().url()).min(1).max(20),
-  referenceUrls: z.array(z.string().url()).min(1).max(2),
+  productUrls: z.array(blobUrl).min(1).max(20),
+  referenceUrls: z.array(blobUrl).min(1).max(2),
   providers: z.record(z.string(), z.boolean()).optional(),
 });
 
 export async function POST(request: Request) {
+  await ensureSchema();
   const parsed = BodySchema.safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.message }, { status: 400 });
@@ -33,6 +50,7 @@ export async function POST(request: Request) {
 
 /** History: recent batches with lightweight job summaries for thumbnails/counts. */
 export async function GET() {
+  await ensureSchema();
   const recent = await db
     .select()
     .from(batches)

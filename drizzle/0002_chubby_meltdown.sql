@@ -1,0 +1,1 @@
+CREATE INDEX "jobs_batch_id_idx" ON "jobs" USING btree ("batch_id");

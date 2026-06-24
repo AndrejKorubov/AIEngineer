@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, jsonb, timestamp, index } from "drizzle-orm/pg-core";
 import type { StyleGuide, GenerationPlan } from "@/lib/schemas";
 
 export type BatchStatus = "queued" | "processing" | "done" | "failed";
@@ -37,7 +37,7 @@ export const jobs = pgTable("jobs", {
   error: text("error"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => [index("jobs_batch_id_idx").on(table.batchId)]);
 
 export type Batch = typeof batches.$inferSelect;
 export type Job = typeof jobs.$inferSelect;

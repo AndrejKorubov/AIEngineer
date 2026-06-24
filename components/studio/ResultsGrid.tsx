@@ -9,12 +9,13 @@ import { TERMINAL } from "@/lib/clientTypes";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export function ResultsGrid({ batchId }: { batchId: string }) {
-  const { data } = useSWR<{ batch: BatchView; jobs: JobView[] }>(
+  const { data, error } = useSWR<{ batch: BatchView; jobs: JobView[] }>(
     `/api/batches/${batchId}`,
     fetcher,
     {
       refreshInterval: (latest) =>
         latest && latest.jobs.every((j) => TERMINAL.includes(j.status)) ? 0 : 1500,
+      keepPreviousData: true,
     },
   );
 
@@ -23,10 +24,23 @@ export function ResultsGrid({ batchId }: { batchId: string }) {
   const failed = jobs.filter((j) => j.status === "failed").length;
   const allTerminal = jobs.length > 0 && jobs.every((j) => TERMINAL.includes(j.status));
 
-  if (!data) return <p className="text-sm text-muted">Loading…</p>;
+  if (!data) {
+    return error ? (
+      <p className="text-sm text-danger">
+        Couldn&apos;t load results — check your connection. Retrying…
+      </p>
+    ) : (
+      <p className="text-sm text-muted">Loading…</p>
+    );
+  }
 
   return (
     <div>
+      {error && (
+        <div className="mb-3 rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-warning-strong">
+          Connection issue — showing the last update, retrying automatically…
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge tone="success">{done} done</Badge>
         {failed > 0 && <Badge tone="danger">{failed} failed</Badge>}

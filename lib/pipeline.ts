@@ -11,6 +11,11 @@ import {
   type GenerationPlan,
 } from "./schemas";
 
+// Per-stage attempt timeouts so a hung provider fails over instead of stalling.
+const VISION_TIMEOUT = 45_000;
+const LLM_TIMEOUT = 45_000;
+const IMAGE_TIMEOUT = 120_000;
+
 /** Analyze the reference image(s) ONCE per batch into a shared style guide. */
 export async function analyzeReference(
   referenceUrls: string[],
@@ -27,6 +32,7 @@ export async function analyzeReference(
           "style guide describing the setting, lighting, mood, style, composition, color palette, " +
           "textures and camera angle. Describe the SCENE and AESTHETIC, not any product in it.",
       }),
+    VISION_TIMEOUT,
   );
   return { styleGuide: result, providerUsed };
 }
@@ -47,6 +53,7 @@ export async function analyzeProduct(
           "details that make it recognizable, and exactly what must NOT be distorted when it is " +
           "placed into a new scene (logos, text, proportions, color).",
       }),
+    VISION_TIMEOUT,
   );
   return { product: result, providerUsed };
 }
@@ -68,8 +75,10 @@ export async function buildGenerationPlan(
     `3) composition: how to frame the product in the scene.\n` +
     `4) copy: a headline, caption and CTA for the post that fit the product and mood.`;
 
-  const { result, providerUsed } = await withFailover(pickEnabled(llmProviders, enabled), (p) =>
-    p.complete({ prompt, schema: GenerationPlanSchema }),
+  const { result, providerUsed } = await withFailover(
+    pickEnabled(llmProviders, enabled),
+    (p) => p.complete({ prompt, schema: GenerationPlanSchema }),
+    LLM_TIMEOUT,
   );
 
   // Safety net: never hand the image model an empty instruction.
@@ -97,6 +106,7 @@ export async function generateCreative(args: {
         referenceUrls: args.referenceUrls,
         prompt: args.editPrompt,
       }),
+    IMAGE_TIMEOUT,
   );
   const ext = result.contentType.includes("jpeg") ? "jpg" : "png";
   const blob = await put(`creatives/${args.jobId}.${ext}`, result.bytes, {
