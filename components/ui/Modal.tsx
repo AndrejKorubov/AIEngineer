@@ -3,16 +3,20 @@
 import { useEffect, type ReactNode } from "react";
 
 /** Modal per modals.md — backdrop + container, Esc to close, role=dialog. */
+const MAX_W = { md: "max-w-2xl", lg: "max-w-3xl", xl: "max-w-5xl" } as const;
+
 export function Modal({
   open,
   onClose,
   title,
   children,
+  size = "lg",
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
+  size?: keyof typeof MAX_W;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -29,14 +33,17 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center p-4"
+      className="fixed inset-0 z-40 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 max-h-[90vh] w-full max-w-3xl overflow-auto rounded-lg border border-border bg-card shadow-[0_10px_15px_-3px_rgb(0_0_0/0.15)]">
-        {title && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative flex min-h-full items-center justify-center p-4">
+        <div
+          className={`relative z-10 w-full ${MAX_W[size]} rounded-lg border border-border bg-card shadow-[0_10px_15px_-3px_rgb(0_0_0/0.15)]`}
+        >
+          {title && (
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <h2 className="text-lg font-semibold text-heading">{title}</h2>
             <button
@@ -49,8 +56,9 @@ export function Modal({
               </svg>
             </button>
           </div>
-        )}
-        <div className="p-5">{children}</div>
+          )}
+          <div className="p-5">{children}</div>
+        </div>
       </div>
     </div>
   );

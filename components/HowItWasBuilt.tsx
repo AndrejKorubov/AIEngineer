@@ -10,9 +10,9 @@ const TOOLS: { name: string; role: string }[] = [
 ];
 
 const TIME = [
-  { label: "Total time", value: "~4.5 h" },
-  { label: "Hands-on (me)", value: "~1.5 h", note: "directing, reviewing, keys, decisions" },
-  { label: "AI working", value: "~3 h", note: "implementation, deploy, debugging" },
+  { label: "Total time", value: "~3.5 h" },
+  { label: "Hands-on (me)", value: "~40 min", note: "directing, reviewing, keys, decisions" },
+  { label: "AI working", value: "~2 h 50 min", note: "implementation, deploy, debugging" },
 ];
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {

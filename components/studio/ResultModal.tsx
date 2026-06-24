@@ -30,7 +30,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 
 export function ResultModal({ job, onClose }: { job: JobView; onClose: () => void }) {
   return (
-    <Modal open onClose={onClose} title={job.headline ?? "Creative"}>
+    <Modal open onClose={onClose} title={job.headline ?? "Creative"} size="xl">
       <div className="grid gap-5 md:grid-cols-2">
         <div>
           {job.resultUrl ? (

@@ -1,7 +1,6 @@
 "use client";
 
 import useSWR from "swr";
-import { Badge } from "@/components/ui/Badge";
 import type { HistoryItem } from "@/lib/clientTypes";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -56,11 +55,11 @@ export function HistoryList({
               <p className="truncate text-xs text-body">
                 {new Date(b.createdAt).toLocaleString()}
               </p>
-              <div className="mt-1 flex gap-1">
-                <Badge tone="success">{b.done}</Badge>
-                {b.failed > 0 && <Badge tone="danger">{b.failed}</Badge>}
-                <Badge tone="neutral">/{b.total}</Badge>
-              </div>
+              <p className="mt-0.5 text-xs">
+                <span className="text-success-strong">{b.done} done</span>
+                {b.failed > 0 && <span className="text-danger-strong"> · {b.failed} failed</span>}
+                <span className="text-muted"> · {b.total} total</span>
+              </p>
             </div>
           </button>
         ))}
