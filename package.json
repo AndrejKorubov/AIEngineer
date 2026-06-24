@@ -1,0 +1,36 @@
+{
+  "name": "batch-creative-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@fal-ai/client": "^1.10.1",
+    "@google/genai": "^2.10.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "@vercel/blob": "^2.4.1",
+    "drizzle-orm": "^0.45.2",
+    "inngest": "^4.11.0",
+    "next": "^16.2.9",
+    "openai": "^6.44.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "swr": "^2.4.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^5.7.2"
+  }
+}
