@@ -59,6 +59,13 @@ export async function buildGenerationPlan(
   const { result } = await withFailover(llmProviders, (p) =>
     p.complete({ prompt, schema: GenerationPlanSchema }),
   );
+
+  // Safety net: never hand the image model an empty instruction.
+  if (!result.editPrompt.trim()) {
+    result.editPrompt =
+      `Place the ${product.productType} into a ${style.setting} scene with ${style.lighting} ` +
+      `lighting and a ${style.mood} mood. Preserve the product's exact shape, colors and details.`;
+  }
   return result;
 }
 
@@ -81,6 +88,10 @@ export async function generateCreative(args: {
     access: "public",
     contentType: result.contentType,
     addRandomSuffix: true,
+    // Pass the token explicitly so the SDK scopes to the public store derived
+    // from the token. Otherwise Vercel's auto-injected VERCEL_OIDC_TOKEN makes
+    // it use BLOB_STORE_ID (a different/private store) and reject public access.
+    token: process.env.BLOB_READ_WRITE_TOKEN,
   });
   return blob.url;
 }
