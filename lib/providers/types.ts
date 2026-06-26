@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { ImageAspectRatio } from "@/lib/aspect";
 
 /** A vision provider analyzes an image into a typed structured object. */
 export interface VisionProvider {
@@ -19,10 +20,12 @@ export interface LLMProvider {
 /** An image-edit provider composites a product into a reference scene/style. */
 export interface ImageEditProvider {
   readonly name: string;
-  /** Returns raw PNG/JPEG bytes of the generated creative. */
+  /** Returns raw PNG/JPEG bytes of the generated creative.
+   *  `aspectRatio` omitted ⇒ preserve the input image's framing (used by rim swap). */
   edit(args: {
     productUrl: string;
     referenceUrls: string[];
     prompt: string;
+    aspectRatio?: ImageAspectRatio;
   }): Promise<{ bytes: Buffer; contentType: string }>;
 }

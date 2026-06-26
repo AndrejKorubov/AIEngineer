@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db, batches, jobs } from "@/db";
-import { analyzeProduct, buildGenerationPlan, generateCreative } from "@/lib/pipeline";
+import { analyzeProduct, buildGenerationPlan, buildRimSwapPrompt, generateCreative } from "@/lib/pipeline";
+import { maskedRimSwap } from "@/lib/rimSwap";
 import { inngest } from "./client";
 
 /**
@@ -41,12 +42,60 @@ export const jobRun = inngest.createFunction(
       return row;
     });
 
-    const [batch] = await step.run("load-style-guide", () =>
+    const [batch] = await step.run("load-batch", () =>
       db.select().from(batches).where(eq(batches.id, job.batchId)),
     );
-    if (!batch?.styleGuide) throw new Error("style guide not ready");
+    if (!batch) throw new Error("batch not found");
 
     const enabled = batch.providers ?? undefined;
+
+    // Rim mode: composite the chosen rim onto the car. The job carries its own
+    // rim snapshot, so no catalog lookup happens here.
+    if (batch.mode === "rims") {
+      const rim = job.rim;
+      if (!rim) throw new Error("rim job has no rim snapshot");
+
+      const { resultUrl, providerUsed: imageUsed } = await step.run("generate-image", async () => {
+        try {
+          // Production path: detect the wheels and inpaint ONLY that region, so
+          // the rest of the car is the original pixels (never redrawn). Output
+          // keeps the car photo's exact dimensions — no crop, no padding.
+          return await maskedRimSwap({ jobId, carUrl: batch.carUrl!, rim });
+        } catch (err) {
+          // Fallback: full-image edit (Fal Kontext) if segmentation/inpaint fails.
+          console.warn(
+            `[rim] masked inpaint failed, falling back to full-image edit: ${err instanceof Error ? err.message : err}`,
+          );
+          return generateCreative({
+            jobId,
+            productUrl: batch.carUrl!,
+            referenceUrls: [rim.imageUrl],
+            editPrompt: buildRimSwapPrompt(rim),
+            aspectRatio: batch.aspectRatio,
+            preferImage: "fal-flux-kontext",
+            enabled,
+          });
+        }
+      });
+
+      await step.run("finish", async () => {
+        await db
+          .update(jobs)
+          .set({
+            status: "done",
+            resultUrl,
+            providersUsed: { image: imageUsed },
+            error: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(jobs.id, jobId));
+      });
+
+      return { jobId, resultUrl };
+    }
+
+    // Social mode (existing): requires the shared style guide.
+    if (!batch.styleGuide) throw new Error("style guide not ready");
 
     const { product, providerUsed: visionUsed } = await step.run("analyze-product", () =>
       analyzeProduct(job.productUrl, enabled),
@@ -62,6 +111,7 @@ export const jobRun = inngest.createFunction(
         productUrl: job.productUrl,
         referenceUrls: batch.referenceUrls,
         editPrompt: plan.editPrompt,
+        aspectRatio: batch.aspectRatio,
         enabled,
       }),
     );

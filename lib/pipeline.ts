@@ -2,6 +2,8 @@ import { put } from "@vercel/blob";
 import { withFailover } from "./providers/withFailover";
 import { visionProviders, llmProviders, imageProviders, pickEnabled } from "./providers/registry";
 import type { ProviderConfig } from "@/db/schema";
+import type { ImageAspectRatio } from "./aspect";
+import type { RimRef } from "./catalog/types";
 import {
   ProductAnalysisSchema,
   StyleGuideSchema,
@@ -90,21 +92,55 @@ export async function buildGenerationPlan(
   return { plan: result, providerUsed };
 }
 
+/**
+ * Build the rim-swap edit prompt (rim mode). Deterministic, no LLM. The car is
+ * IMAGE 1 (productUrl) and the rim is IMAGE 2 (referenceUrls[0]) — matching how
+ * the image adapters label their inputs.
+ */
+export function buildRimSwapPrompt(rim: RimRef): string {
+  const name = [rim.brand, rim.name].filter(Boolean).join(" ");
+  const desc =
+    [rim.finish ?? "", name, rim.diameterInch ? `(${rim.diameterInch}")` : ""].filter(Boolean).join(" ") ||
+    "alloy wheel";
+  return (
+    `IMAGE 1 is a car. IMAGE 2 is the TARGET alloy wheel — a ${desc}. ` +
+    `Replace EVERY wheel on the car with the wheel from IMAGE 2: match its spoke pattern, spoke count, colour ` +
+    `and finish faithfully, with correct perspective and foreshortening for each wheel's angle. The wheels in ` +
+    `the output MUST clearly match IMAGE 2 and look obviously different from the car's original wheels — do not ` +
+    `keep the original wheels.\n\n` +
+    `CRITICAL: change ONLY the wheels. Keep the entire rest of the image identical to IMAGE 1 — do NOT ` +
+    `re-render, repaint, sharpen, brighten, restyle or add/alter any detail of the car body, colour, paint, ` +
+    `headlights, badges, mirrors, windows, tyres, ride height, ground, shadows, lighting or background, and ` +
+    `keep the exact same framing (no crop or zoom). If IMAGE 1 has plain white borders, leave them solid ` +
+    `white. Output one photorealistic image.`
+  );
+}
+
 /** Generate the creative image and persist it to Vercel Blob; returns the public URL + provider. */
 export async function generateCreative(args: {
   jobId: string;
   productUrl: string;
   referenceUrls: string[];
   editPrompt: string;
+  aspectRatio?: ImageAspectRatio; // omit ⇒ provider default; rims pass the car's closest ratio
+  preferImage?: string; // image provider to try first (rims prefer Fal Kontext for edits)
   enabled?: ProviderConfig;
 }): Promise<{ resultUrl: string; providerUsed: string }> {
+  let providers = pickEnabled(imageProviders, args.enabled);
+  if (args.preferImage) {
+    // Move the preferred provider to the front; the rest stay as fallbacks.
+    providers = [...providers].sort(
+      (a, b) => Number(b.name === args.preferImage) - Number(a.name === args.preferImage),
+    );
+  }
   const { result, providerUsed } = await withFailover(
-    pickEnabled(imageProviders, args.enabled),
+    providers,
     (p) =>
       p.edit({
         productUrl: args.productUrl,
         referenceUrls: args.referenceUrls,
         prompt: args.editPrompt,
+        aspectRatio: args.aspectRatio,
       }),
     IMAGE_TIMEOUT,
   );

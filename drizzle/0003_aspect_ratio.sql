@@ -1,0 +1,1 @@
+ALTER TABLE "batches" ADD COLUMN "aspect_ratio" text DEFAULT '16:9' NOT NULL;

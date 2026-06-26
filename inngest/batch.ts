@@ -19,17 +19,23 @@ export const batchCreated = inngest.createFunction(
       return row;
     });
 
-    // Analyze the reference image(s) a single time; reused by every job.
-    const { styleGuide } = await step.run("analyze-reference", () =>
-      analyzeReference(batch.referenceUrls, batch.providers ?? undefined),
-    );
-
-    await step.run("save-style-guide", async () => {
-      await db
-        .update(batches)
-        .set({ styleGuide, status: "processing" })
-        .where(eq(batches.id, batchId));
-    });
+    if (batch.mode === "rims") {
+      // Rim mode has no shared style guide — each job carries its own rim snapshot.
+      await step.run("mark-processing", async () => {
+        await db.update(batches).set({ status: "processing" }).where(eq(batches.id, batchId));
+      });
+    } else {
+      // Social: analyze the reference image(s) a single time; reused by every job.
+      const { styleGuide } = await step.run("analyze-reference", () =>
+        analyzeReference(batch.referenceUrls, batch.providers ?? undefined),
+      );
+      await step.run("save-style-guide", async () => {
+        await db
+          .update(batches)
+          .set({ styleGuide, status: "processing" })
+          .where(eq(batches.id, batchId));
+      });
+    }
 
     const jobIds = await step.run("load-jobs", async () => {
       const rows = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.batchId, batchId));

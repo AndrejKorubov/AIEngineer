@@ -1,5 +1,7 @@
 import type { GenerationPlan, StyleGuide } from "@/lib/schemas";
 import type { ProviderConfig, ProvidersUsed } from "@/db/schema";
+import type { ImageAspectRatio } from "@/lib/aspect";
+import type { RimRef } from "@/lib/catalog/types";
 
 export type JobStatus = "queued" | "processing" | "retrying" | "done" | "failed";
 export type BatchStatus = "queued" | "processing" | "done" | "failed";
@@ -15,6 +17,7 @@ export type JobView = {
   headline: string | null;
   caption: string | null;
   cta: string | null;
+  rim: RimRef | null;
   providersUsed: ProvidersUsed | null;
   error: string | null;
 };
@@ -23,6 +26,7 @@ export type BatchView = {
   id: string;
   status: BatchStatus;
   referenceUrls: string[];
+  aspectRatio: ImageAspectRatio;
   styleGuide: StyleGuide | null;
   providers: ProviderConfig | null;
 };

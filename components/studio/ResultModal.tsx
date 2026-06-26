@@ -31,8 +31,14 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 export function ResultModal({ job, onClose }: { job: JobView; onClose: () => void }) {
   const img = job.resultUrl ?? job.productUrl;
 
+  const title = job.rim
+    ? job.rim.brand
+      ? `${job.rim.brand} ${job.rim.name}`
+      : job.rim.name
+    : (job.headline ?? "Creative");
+
   return (
-    <Modal open onClose={onClose} title={job.headline ?? "Creative"} size="xl">
+    <Modal open onClose={onClose} title={title} size="xl">
       <div className="grid gap-5 lg:grid-cols-5">
         {/* Image — fully visible, never cropped, capped height */}
         <div className="lg:col-span-3">
@@ -48,14 +54,48 @@ export function ResultModal({ job, onClose }: { job: JobView; onClose: () => voi
 
         {/* Details */}
         <div className="space-y-3 lg:col-span-2">
-          {job.headline && <CopyRow label="Headline" value={job.headline} />}
-          {job.caption && <CopyRow label="Caption" value={job.caption} />}
-          {job.cta && <CopyRow label="CTA" value={job.cta} />}
+          {job.rim ? (
+            <div className="rounded-lg border border-border bg-background p-3">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">Rim applied</p>
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={job.rim.imageUrl}
+                  alt={job.rim.name}
+                  className="h-16 w-16 shrink-0 rounded-md border border-border bg-card-muted object-cover"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-heading">
+                    {job.rim.brand ? `${job.rim.brand} ${job.rim.name}` : job.rim.name}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {job.rim.diameterInch ? `${job.rim.diameterInch}" · ` : ""}
+                    {job.rim.finish}
+                    {job.rim.priceCents != null ? ` · €${Math.round(job.rim.priceCents / 100)}` : ""}
+                  </p>
+                  <a
+                    href={job.rim.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="mt-1 inline-block text-xs font-medium text-fg-brand underline underline-offset-2 hover:no-underline"
+                  >
+                    Buy at {job.rim.sourceSite} ↗
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {job.headline && <CopyRow label="Headline" value={job.headline} />}
+              {job.caption && <CopyRow label="Caption" value={job.caption} />}
+              {job.cta && <CopyRow label="CTA" value={job.cta} />}
+            </>
+          )}
 
           {job.providersUsed && (
             <div className="flex flex-wrap gap-1.5 pt-1">
-              <Badge tone="neutral">vision · {providerLabel(job.providersUsed.vision)}</Badge>
-              <Badge tone="neutral">text · {providerLabel(job.providersUsed.llm)}</Badge>
+              {!job.rim && <Badge tone="neutral">vision · {providerLabel(job.providersUsed.vision)}</Badge>}
+              {!job.rim && <Badge tone="neutral">text · {providerLabel(job.providersUsed.llm)}</Badge>}
               <Badge tone="neutral">image · {providerLabel(job.providersUsed.image)}</Badge>
             </div>
           )}

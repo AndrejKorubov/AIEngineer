@@ -1,38 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { ImageDropzone, type Picked } from "./ImageDropzone";
 import { ProviderPanel } from "./ProviderPanel";
+import { OrientationPicker } from "./OrientationPicker";
 import { ResultsGrid } from "./ResultsGrid";
 import { HistoryList } from "./HistoryList";
 import { Button } from "@/components/ui/Button";
 import { ALL_PROVIDER_NAMES } from "@/lib/providerMeta";
+import { ASPECT_RATIOS, DEFAULT_ASPECT, type AspectRatio } from "@/lib/aspect";
 import type { ProviderConfig } from "@/db/schema";
-
-function loadProviders(): ProviderConfig {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(localStorage.getItem("providers") ?? "{}");
-  } catch {
-    return {};
-  }
-}
 
 export function Studio() {
   const [products, setProducts] = useState<Picked[]>([]);
   const [references, setReferences] = useState<Picked[]>([]);
-  const [providers, setProviders] = useState<ProviderConfig>(loadProviders);
+  // Start at defaults so SSR and the first client render match; restore saved
+  // choices after mount to avoid a hydration mismatch.
+  const [providers, setProviders] = useState<ProviderConfig>({});
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>(DEFAULT_ASPECT);
   const [activeBatch, setActiveBatch] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
+
+  useEffect(() => {
+    try {
+      setProviders(JSON.parse(localStorage.getItem("providers") ?? "{}"));
+    } catch {
+      /* ignore malformed */
+    }
+    const savedAspect = localStorage.getItem("aspectRatio");
+    if (ASPECT_RATIOS.includes(savedAspect as AspectRatio)) setAspectRatio(savedAspect as AspectRatio);
+  }, []);
 
   const canSubmit = products.length >= 1 && references.length >= 1 && !busy;
 
   function setProvidersPersisted(next: ProviderConfig) {
     setProviders(next);
     localStorage.setItem("providers", JSON.stringify(next));
+  }
+
+  function setAspectPersisted(next: AspectRatio) {
+    setAspectRatio(next);
+    localStorage.setItem("aspectRatio", next);
   }
 
   async function uploadAll(items: Picked[]) {
@@ -62,7 +73,7 @@ export function Studio() {
       const res = await fetch("/api/batches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ productUrls, referenceUrls, providers: providerConfig }),
+        body: JSON.stringify({ mode: "social", productUrls, referenceUrls, providers: providerConfig, aspectRatio }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "failed to create batch");
       const { batchId } = await res.json();
@@ -108,8 +119,9 @@ export function Studio() {
           </Button>
         </div>
 
+        <OrientationPicker value={aspectRatio} onChange={setAspectPersisted} />
         <ProviderPanel enabled={providers} onChange={setProvidersPersisted} />
-        <HistoryList activeId={activeBatch} onSelect={setActiveBatch} refreshKey={historyKey} />
+        <HistoryList mode="social" activeId={activeBatch} onSelect={setActiveBatch} refreshKey={historyKey} />
       </div>
 
       {/* Right column: live results for the active batch */}

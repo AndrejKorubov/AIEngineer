@@ -5,6 +5,7 @@ import { ResultCard } from "./ResultCard";
 import { Badge } from "@/components/ui/Badge";
 import type { BatchView, JobView } from "@/lib/clientTypes";
 import { TERMINAL } from "@/lib/clientTypes";
+import { DEFAULT_ASPECT } from "@/lib/aspect";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -63,7 +64,7 @@ export function ResultsGrid({ batchId }: { batchId: string }) {
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {jobs.map((job) => (
-          <ResultCard key={job.id} job={job} />
+          <ResultCard key={job.id} job={job} aspectRatio={data.batch.aspectRatio ?? DEFAULT_ASPECT} />
         ))}
       </div>
     </div>

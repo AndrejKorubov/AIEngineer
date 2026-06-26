@@ -2,22 +2,25 @@
 
 import useSWR from "swr";
 import type { HistoryItem } from "@/lib/clientTypes";
+import type { GeneratorId } from "@/lib/generators";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-/** Persistent history (req 4) — past batches from Neon, click to reopen inline. */
+/** Persistent history (req 4) — past batches from Neon, scoped to the active mode. */
 export function HistoryList({
+  mode,
   activeId,
   onSelect,
   refreshKey,
 }: {
+  mode: GeneratorId;
   activeId: string | null;
   onSelect: (id: string) => void;
   refreshKey: number;
 }) {
   const { data } = useSWR<{ batches: HistoryItem[] }>(
-    ["/api/batches", refreshKey],
-    () => fetcher("/api/batches"),
+    ["/api/batches", mode, refreshKey],
+    () => fetcher(`/api/batches?mode=${mode}`),
     { refreshInterval: 5000 },
   );
   const batches = data?.batches ?? [];

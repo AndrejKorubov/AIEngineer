@@ -21,10 +21,17 @@ async function run(): Promise<void> {
       "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
       "status" text DEFAULT 'queued' NOT NULL,
       "reference_urls" jsonb NOT NULL,
+      "aspect_ratio" text DEFAULT '16:9' NOT NULL,
       "style_guide" jsonb,
       "providers" jsonb,
       "created_at" timestamp DEFAULT now() NOT NULL
     )`;
+  // Backfill for databases created before the orientation option existed.
+  await sql`ALTER TABLE "batches" ADD COLUMN IF NOT EXISTS "aspect_ratio" text DEFAULT '16:9' NOT NULL`;
+  // Backfill for the rim-swap generator mode.
+  await sql`ALTER TABLE "batches" ADD COLUMN IF NOT EXISTS "mode" text DEFAULT 'social' NOT NULL`;
+  await sql`ALTER TABLE "batches" ADD COLUMN IF NOT EXISTS "car_url" text`;
+  await sql`ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "rim" jsonb`;
   await sql`
     CREATE TABLE IF NOT EXISTS "jobs" (
       "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,

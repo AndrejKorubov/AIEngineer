@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { desc, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { db, batches, jobs } from "@/db";
 import { ensureSchema } from "@/db/ensureSchema";
 import { inngest } from "@/inngest/client";
+import { ASPECT_RATIOS, IMAGE_ASPECT_RATIOS, DEFAULT_ASPECT } from "@/lib/aspect";
+import { isGeneratorId } from "@/lib/generators";
+import { activeCatalog } from "@/lib/catalog";
 
 /**
  * Only accept image URLs that live on our Vercel Blob public store (where the
@@ -20,11 +23,25 @@ function isBlobUrl(value: string): boolean {
 }
 const blobUrl = z.string().url().refine(isBlobUrl, "must be a Vercel Blob URL");
 
-const BodySchema = z.object({
+const providersField = z.record(z.string(), z.boolean()).optional();
+
+const SocialBody = z.object({
+  mode: z.literal("social"),
   productUrls: z.array(blobUrl).min(1).max(20),
   referenceUrls: z.array(blobUrl).min(1).max(2),
-  providers: z.record(z.string(), z.boolean()).optional(),
+  providers: providersField,
+  aspectRatio: z.enum(ASPECT_RATIOS).optional(), // 3 social orientations
 });
+
+const RimBody = z.object({
+  mode: z.literal("rims"),
+  carUrl: blobUrl,
+  rimIds: z.array(z.string()).min(1).max(8),
+  providers: providersField,
+  aspectRatio: z.enum(IMAGE_ASPECT_RATIOS).optional(), // closest ratio to the car photo
+});
+
+const BodySchema = z.discriminatedUnion("mode", [SocialBody, RimBody]);
 
 export async function POST(request: Request) {
   await ensureSchema();
@@ -32,28 +49,56 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   }
-  const { productUrls, referenceUrls, providers } = parsed.data;
+  const body = parsed.data;
 
+  if (body.mode === "rims") {
+    // Resolve the chosen catalog ids into self-contained snapshots — the worker
+    // never touches the catalog afterwards.
+    const refs = await activeCatalog.getByIds(body.rimIds);
+    if (refs.length === 0) {
+      return NextResponse.json({ error: "no valid rims selected" }, { status: 400 });
+    }
+    const [batch] = await db
+      .insert(batches)
+      .values({
+        mode: "rims",
+        carUrl: body.carUrl,
+        referenceUrls: [], // rims have no shared style reference
+        providers: body.providers,
+        aspectRatio: body.aspectRatio ?? DEFAULT_ASPECT,
+        status: "queued",
+      })
+      .returning({ id: batches.id });
+
+    await db.insert(jobs).values(
+      refs.map((rim) => ({ batchId: batch.id, productUrl: body.carUrl, rim })),
+    );
+    await inngest.send({ name: "batch/created", data: { batchId: batch.id } });
+    return NextResponse.json({ batchId: batch.id });
+  }
+
+  // social
+  const { productUrls, referenceUrls, providers, aspectRatio } = body;
   const [batch] = await db
     .insert(batches)
-    .values({ referenceUrls, providers, status: "queued" })
+    .values({ mode: "social", referenceUrls, providers, aspectRatio: aspectRatio ?? DEFAULT_ASPECT, status: "queued" })
     .returning({ id: batches.id });
 
-  await db
-    .insert(jobs)
-    .values(productUrls.map((productUrl) => ({ batchId: batch.id, productUrl })));
-
+  await db.insert(jobs).values(productUrls.map((productUrl) => ({ batchId: batch.id, productUrl })));
   await inngest.send({ name: "batch/created", data: { batchId: batch.id } });
-
   return NextResponse.json({ batchId: batch.id });
 }
 
 /** History: recent batches with lightweight job summaries for thumbnails/counts. */
-export async function GET() {
+export async function GET(request: Request) {
   await ensureSchema();
+  // Scope history to the active generator mode so social/rim histories don't mix.
+  const modeParam = new URL(request.url).searchParams.get("mode");
+  const mode = isGeneratorId(modeParam) ? modeParam : undefined;
   const recent = await db
     .select()
     .from(batches)
+    .where(mode ? eq(batches.mode, mode) : undefined)
     .orderBy(desc(batches.createdAt))
     .limit(20);
 

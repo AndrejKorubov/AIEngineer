@@ -1,5 +1,6 @@
 import { fal } from "@fal-ai/client";
 import type { ImageEditProvider } from "../types";
+import type { ImageAspectRatio } from "@/lib/aspect";
 import { fetchImage } from "../withFailover";
 
 /**
@@ -14,10 +15,12 @@ export const falKontext: ImageEditProvider = {
     productUrl,
     referenceUrls,
     prompt,
+    aspectRatio,
   }: {
     productUrl: string;
     referenceUrls: string[];
     prompt: string;
+    aspectRatio?: ImageAspectRatio;
   }) {
     fal.config({ credentials: process.env.FAL_KEY });
     const result = await fal.subscribe("fal-ai/flux-pro/kontext/max/multi", {
@@ -26,7 +29,8 @@ export const falKontext: ImageEditProvider = {
           `${prompt} The first image is the product (preserve its identity exactly); ` +
           `the others define the scene, style and lighting.`,
         image_urls: [productUrl, ...referenceUrls],
-        aspect_ratio: "1:1",
+        // Omit to preserve input framing (rim swap); set for social orientation.
+        ...(aspectRatio ? { aspect_ratio: aspectRatio } : {}),
       },
     });
     const url = (result.data as { images?: { url: string }[] })?.images?.[0]?.url;

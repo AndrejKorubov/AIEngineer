@@ -1,4 +1,5 @@
 import type { ImageEditProvider } from "../types";
+import type { ImageAspectRatio } from "@/lib/aspect";
 import { genai, inlineImagePart } from "../google";
 
 /**
@@ -12,10 +13,12 @@ export const geminiFlashImage: ImageEditProvider = {
     productUrl,
     referenceUrls,
     prompt,
+    aspectRatio,
   }: {
     productUrl: string;
     referenceUrls: string[];
     prompt: string;
+    aspectRatio?: ImageAspectRatio;
   }) {
     const parts = [
       {
@@ -32,6 +35,9 @@ export const geminiFlashImage: ImageEditProvider = {
     const res = await genai().models.generateContent({
       model: "gemini-2.5-flash-image",
       contents: [{ role: "user", parts }],
+      // Force orientation when given (social); omit to preserve the input
+      // image's framing (rim swap keeps the car photo's shape).
+      ...(aspectRatio ? { config: { imageConfig: { aspectRatio } } } : {}),
     });
 
     const imagePart = res.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data);
