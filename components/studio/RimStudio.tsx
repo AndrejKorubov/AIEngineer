@@ -26,6 +26,36 @@ function measureAspect(src: string): Promise<ImageAspectRatio> {
 }
 
 /**
+ * Re-encode the car photo before upload so the pipeline gets a clean input:
+ *  - bakes in EXIF orientation (phone photos are often rotated via metadata;
+ *    the segmentation/inpaint models read raw pixels and would otherwise mask
+ *    the wheels in the wrong place), and
+ *  - caps the long side so huge 12MP shots don't shrink the wheels to nothing.
+ * Falls back to the original file if the canvas path is unavailable.
+ */
+async function normalizeCar(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const MAX = 1600;
+    const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), "image/jpeg", 0.92));
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
+/**
  * Rim-swap generator: upload a car, multi-select alloy wheels from the catalog,
  * and render the car wearing each selected rim (one job per rim, fanned out).
  */
@@ -50,10 +80,11 @@ export function RimStudio() {
     setBusy(true);
     setError(null);
     try {
-      // Upload the original car (masked inpaint preserves it exactly); measure
-      // its ratio in parallel, only used if the pipeline falls back to a full edit.
+      // Normalize orientation + size first (EXIF-rotated phone photos otherwise
+      // make the wheel mask land in the wrong place), then upload.
+      const normalized = await normalizeCar(car.file);
       const [res, aspectRatio] = await Promise.all([
-        upload(car.file.name, car.file, { access: "public", handleUploadUrl: "/api/blob/upload" }),
+        upload(normalized.name, normalized, { access: "public", handleUploadUrl: "/api/blob/upload" }),
         measureAspect(car.preview),
       ]);
       const r = await fetch("/api/batches", {

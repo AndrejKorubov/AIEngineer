@@ -1,5 +1,6 @@
 import { fal } from "@fal-ai/client";
 import { put } from "@vercel/blob";
+import sharp from "sharp";
 import type { RimRef } from "./catalog/types";
 
 /**
@@ -42,6 +43,30 @@ async function segmentWheels(carUrl: string): Promise<string> {
   return url;
 }
 
+/**
+ * Clean the raw segmentation mask before inpainting. On cluttered photos EVF-SAM
+ * returns the solid wheel blobs PLUS a speckled low-confidence haze over the car
+ * body; inpainting that haze peppers the body with artifacts. Blur averages the
+ * speckle away while the solid wheels survive, then threshold re-binarises — so
+ * only the wheels get inpainted. Re-uploaded to Blob for FLUX Fill. No-op-safe on
+ * already-clean masks. Returns the original mask URL if cleanup fails.
+ */
+async function cleanMask(maskUrl: string, jobId: string): Promise<string> {
+  try {
+    const raw = Buffer.from(await (await fetch(maskUrl)).arrayBuffer());
+    const cleaned = await sharp(raw).greyscale().blur(8).threshold(150).png().toBuffer();
+    const blob = await put(`creatives/${jobId}-mask.png`, cleaned, {
+      access: "public",
+      contentType: "image/png",
+      addRandomSuffix: true,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    return blob.url;
+  } catch {
+    return maskUrl;
+  }
+}
+
 /** Inpaint only the masked wheels with the new rim; everything else is preserved. */
 async function inpaintWheels(
   carUrl: string,
@@ -68,7 +93,8 @@ export async function maskedRimSwap(args: {
   carUrl: string;
   rim: RimRef;
 }): Promise<{ resultUrl: string; providerUsed: string }> {
-  const maskUrl = await segmentWheels(args.carUrl);
+  const rawMaskUrl = await segmentWheels(args.carUrl);
+  const maskUrl = await cleanMask(rawMaskUrl, args.jobId);
   const { bytes, contentType } = await inpaintWheels(args.carUrl, maskUrl, rimFillPrompt(args.rim));
   const ext = contentType.includes("jpeg") ? "jpg" : "png";
   const blob = await put(`creatives/${args.jobId}.${ext}`, bytes, {
