@@ -15,6 +15,9 @@ import type { RimRef } from "./catalog/types";
 /** Turn a rim into a spoke-style description for the text-conditioned fill. */
 function spokeStyle(name: string): string {
   const n = name.toLowerCase();
+  if (n.includes("concave") || n.includes("vortex") || n.includes("crater")) return "deep concave multi-spoke with a wide lip";
+  if (n.includes("dish")) return "deep-dish 5-spoke with a wide chromed lip";
+  if (n.includes("split")) return "split 10-spoke";
   if (n.includes("mesh")) return "mesh fine multi-spoke";
   if (n.includes("twin")) return "twin 5-spoke (ten-spoke)";
   if (n.includes("turbine")) return "turbine-style directional multi-spoke";

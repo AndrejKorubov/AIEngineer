@@ -20,6 +20,16 @@ const IMAGE_URLS: Record<string, string> = {
   "ph-twin5-silver-16": `${BLOB}/ph-twin5-silver-16.png`,
   "ph-turbine-gun-20": `${BLOB}/ph-turbine-gun-20.png`,
   "ph-turbine-white-19": `${BLOB}/ph-turbine-white-19.png`,
+  "ph-concave-chrome-20": `${BLOB}/ph-concave-chrome-20.png`,
+  "ph-split10-twotone-19": `${BLOB}/ph-split10-twotone-19.png`,
+  "ph-deepdish-gun-20": `${BLOB}/ph-deepdish-gun-20.png`,
+  "ph-mesh-chrome-18": `${BLOB}/ph-mesh-chrome-18.png`,
+  "ph-turbine-twotone-20": `${BLOB}/ph-turbine-twotone-20.png`,
+  "ph-5spoke-chrome-19": `${BLOB}/ph-5spoke-chrome-19.png`,
+  "ph-concave-bronze-19": `${BLOB}/ph-concave-bronze-19.png`,
+  "ph-deepdish-polished-17": `${BLOB}/ph-deepdish-polished-17.png`,
+  "ph-multispoke-twotone-20": `${BLOB}/ph-multispoke-twotone-20.png`,
+  "ph-twin5-chrome-18": `${BLOB}/ph-twin5-chrome-18.png`,
 };
 
 function imageFor(id: string): string {
@@ -64,6 +74,16 @@ export const PLACEHOLDER_RIMS: RimView[] = [
   rim("ph-twin5-silver-16", "Twin-5 RS", "NordRim", 16, "silver", 89),
   rim("ph-turbine-gun-20", "Turbine GT", "KaunoRatas", 20, "gunmetal", 199),
   rim("ph-turbine-white-19", "Turbine GT", "KaunoRatas", 19, "matte white", 175),
+  rim("ph-concave-chrome-20", "Vortex Concave", "AuraForm", 20, "chrome", 229),
+  rim("ph-split10-twotone-19", "Split-10 Duo", "NordRim", 19, "two-tone black", 199),
+  rim("ph-deepdish-gun-20", "Deep Dish RS", "KaunoRatas", 20, "gunmetal", 219),
+  rim("ph-mesh-chrome-18", "Mesh Chrome", "AuraForm", 18, "chrome", 189),
+  rim("ph-turbine-twotone-20", "Turbine Duo", "KaunoRatas", 20, "two-tone bronze", 235),
+  rim("ph-5spoke-chrome-19", "Velar Chrome", "AuraForm", 19, "chrome", 209),
+  rim("ph-concave-bronze-19", "Crater Concave", "NordRim", 19, "bronze", 199),
+  rim("ph-deepdish-polished-17", "Retro Dish", "NordRim", 17, "polished", 159),
+  rim("ph-multispoke-twotone-20", "Strata Duo", "KaunoRatas", 20, "two-tone black", 215),
+  rim("ph-twin5-chrome-18", "Twin-5 Chrome", "NordRim", 18, "chrome", 199),
 ];
 
 const PAGE_SIZE = 24;

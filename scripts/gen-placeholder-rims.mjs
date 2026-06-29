@@ -5,7 +5,7 @@
  *
  * Run:  node scripts/gen-placeholder-rims.mjs
  */
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { GoogleGenAI } from "@google/genai";
 import { put } from "@vercel/blob";
 
@@ -26,6 +26,17 @@ const RIMS = [
   { id: "ph-twin5-silver-16", dia: 16, finish: "silver", style: "twin 5-spoke" },
   { id: "ph-turbine-gun-20", dia: 20, finish: "gunmetal grey", style: "turbine directional" },
   { id: "ph-turbine-white-19", dia: 19, finish: "matte white", style: "turbine directional" },
+  // --- extra 10 styles: chrome, two-tone, deep-dish / concave wide profile ---
+  { id: "ph-concave-chrome-20", dia: 20, finish: "mirror chrome", style: "deep concave multi-spoke with a wide lip" },
+  { id: "ph-split10-twotone-19", dia: 19, finish: "two-tone gloss black with polished machined faces", style: "split 10-spoke" },
+  { id: "ph-deepdish-gun-20", dia: 20, finish: "gunmetal with a polished lip", style: "deep-dish 5-spoke with a wide concave profile" },
+  { id: "ph-mesh-chrome-18", dia: 18, finish: "mirror chrome", style: "fine mesh multi-spoke" },
+  { id: "ph-turbine-twotone-20", dia: 20, finish: "two-tone bronze with gloss black", style: "turbine directional" },
+  { id: "ph-5spoke-chrome-19", dia: 19, finish: "mirror chrome", style: "bold 5-spoke" },
+  { id: "ph-concave-bronze-19", dia: 19, finish: "matte bronze", style: "deep concave Y-spoke with an aggressive dish" },
+  { id: "ph-deepdish-polished-17", dia: 17, finish: "polished silver", style: "classic deep-dish 5-spoke with a wide chromed lip" },
+  { id: "ph-multispoke-twotone-20", dia: 20, finish: "two-tone gloss black with a machined lip", style: "fine multi-spoke" },
+  { id: "ph-twin5-chrome-18", dia: 18, finish: "polished chrome", style: "twin 5-spoke" },
 ];
 
 const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY });
@@ -55,6 +66,11 @@ async function genOne(r, attempt = 1) {
 mkdirSync("public/rims", { recursive: true });
 const urls = {};
 for (const r of RIMS) {
+  // Idempotent: skip rims whose image already exists (only generate new ones).
+  if (existsSync(`public/rims/${r.id}.png`)) {
+    console.log(`skipping ${r.id} (exists)`);
+    continue;
+  }
   process.stdout.write(`generating ${r.id} … `);
   const bytes = await genOne(r);
   writeFileSync(`public/rims/${r.id}.png`, bytes);

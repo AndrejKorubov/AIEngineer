@@ -8,7 +8,18 @@ import type { RimView } from "@/lib/catalog/types";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const DIAMETERS = [16, 17, 18, 19, 20];
-const FINISHES = ["silver", "matte black", "gloss black", "gunmetal", "polished", "bronze", "matte white"];
+const FINISHES = [
+  "silver",
+  "matte black",
+  "gloss black",
+  "gunmetal",
+  "polished",
+  "bronze",
+  "matte white",
+  "chrome",
+  "two-tone black",
+  "two-tone bronze",
+];
 
 const selectClass =
   "rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-heading shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-brand/30";
